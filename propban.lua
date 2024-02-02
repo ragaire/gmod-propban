@@ -1,42 +1,47 @@
 local SAM_PropBans = {}
 
 -- get prop ban function
-function SAM_GetPropBan(target)
-    if not IsValid(target) then return end
-
-    return SAM_PropBans[target] and SAM_PropBans[target] or false
+function SAM_GetPropBan(steamid)
+    return SAM_PropBans[steamid] and SAM_PropBans[steamid] or false
 end
 
 -- prop ban function
-function SAM_PropBan(target, banTime)
-    if not IsValid(target) then return end
+function SAM_PropBan(steamid, banTime)
     banTime = banTime or 0
     banTime = banTime > 0 and CurTime() + banTime or math.huge
 
-    if SAM_PropBans[target] and SAM_PropBans[target] >= banTime then return end
-
-    SAM_PropBans[target] = banTime
+    SAM_PropBans[steamid] = banTime
 end
 
 -- prop unban function
-function SAM_UnpropBan(target)
-    if not IsValid(target) then return end
-
-    SAM_PropBans[target] = nil
+function SAM_UnpropBan(steamid)
+    SAM_PropBans[steamid] = nil
 end
 
--- PlayerSpawnObject hook to prevent spawning objects for banned players
 hook.Add("PlayerSpawnObject", "PropBanCheck", function(ply, model)
-    if SAM_PropBans[ply] and SAM_PropBans[ply] > CurTime() then
+    local steamid = ply:SteamID()
+
+    if SAM_PropBans[steamid] and SAM_PropBans[steamid] > CurTime() then
         ply:ChatPrint("You are currently banned from spawning props.")
-        return false -- Prevent object spawning if player is banned
+        return false
     end
 end)
 
--- Clear the table if the player becomes invalid
-hook.Add("PlayerDisconnected", "ClearPropBanCache", function(ply)
-    SAM_PropBans[ply] = nil
+hook.Add("CanTool", "PropbanToolCheck", function(ply, tr, toolname, tool, button)
+    local steamid = ply:SteamID()
+
+    if SAM_PropBans[steamid] and SAM_PropBans[steamid] > CurTime() then
+        ply:ChatPrint("You are currently banned from spawning props.")
+        return false
+    end
 end)
+
+-- -- Clear the table if the player becomes invalid
+-- hook.Add("PlayerDisconnected", "ClearPropBanCache", function(ply)
+--     local steamid = ply:SteamID()
+--     SAM_PropBans[steamid] = nil
+-- end)
+
 
 -- !propban command
 sam.command.new("propban")
@@ -50,7 +55,8 @@ sam.command.new("propban")
     :OnExecute(function(ply, targets, length, reason)
         for i = 1, #targets do
             local target = targets[i]
-            SAM_PropBan(target, length * 60)
+            local steamid = target:SteamID()
+            SAM_PropBan(steamid, length * 60)
         end
 
         if sam.is_command_silent then return end
@@ -70,7 +76,8 @@ sam.command.new("unpropban")
     :OnExecute(function(ply, targets)
         for i = 1, #targets do
             local target = targets[i]
-            SAM_UnpropBan(target)
+            local steamid = target:SteamID()
+            SAM_UnpropBan(steamid)
         end
 
         if sam.is_command_silent then return end
